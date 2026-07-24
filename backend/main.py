@@ -1,10 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routes import analyze
+from app.routes import process
+from app.routes import upload
+
+
+# ================================
+# Application Configuration
+# ================================
 
 app = FastAPI(
     title="AI Clothing to IMVU Creator API",
-    description="AI-powered API for converting clothing images into IMVU-ready assets.",
+    description=(
+        "AI-powered API for converting "
+        "clothing images into IMVU-ready assets."
+    ),
     version="1.0.0",
 )
 
@@ -23,6 +34,26 @@ app.add_middleware(
 
 
 # ================================
+# Register API Routes
+# ================================
+
+app.include_router(
+    upload.router,
+    prefix="/api",
+)
+
+app.include_router(
+    process.router,
+    prefix="/api",
+)
+
+app.include_router(
+    analyze.router,
+    prefix="/api",
+)
+
+
+# ================================
 # Root Endpoint
 # ================================
 
@@ -30,8 +61,12 @@ app.add_middleware(
 async def root():
     return {
         "success": True,
-        "project": "AI Clothing to IMVU Creator",
-        "message": "API is running successfully",
+        "project": (
+            "AI Clothing to IMVU Creator"
+        ),
+        "message": (
+            "API is running successfully"
+        ),
         "version": "1.0.0",
     }
 
@@ -56,15 +91,27 @@ async def health_check():
 async def api_info():
     return {
         "success": True,
-        "name": "AI Clothing to IMVU Creator API",
+        "name": (
+            "AI Clothing to IMVU Creator API"
+        ),
         "version": "1.0.0",
+        "endpoints": {
+            "upload": (
+                "POST /api/upload/clothing"
+            ),
+            "remove_background": (
+                "POST /api/process/remove-background"
+            ),
+            "analyze": (
+                "POST /api/analyze/clothing"
+            ),
+        },
         "features": [
-            "Clothing Detection",
+            "Clothing Image Upload",
             "Background Removal",
-            "Clothing Segmentation",
-            "Texture Generation",
+            "Clothing Image Analysis",
             "Color Detection",
-            "Texture Enhancement",
+            "Texture Generation",
             "IMVU Asset Preparation",
         ],
     }
