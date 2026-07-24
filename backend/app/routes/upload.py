@@ -3,10 +3,10 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from app.config import settings
+from app.services.file_validator import FileValidator
 from app.utils import (
     ensure_directories,
     generate_unique_filename,
-    validate_upload_file,
 )
 
 
@@ -25,45 +25,55 @@ async def upload_clothing_image(
     file: UploadFile = File(...),
 ):
     """
-    Upload a clothing image.
+    Upload and validate a clothing image.
 
-    The uploaded image is:
-    1. Validated
-    2. Given a unique filename
-    3. Saved inside the upload directory
+    Process:
+    1. Validate filename
+    2. Validate extension
+    3. Check file size
+    4. Save image
+    5. Validate actual image content
     """
 
     # Create required directories
     ensure_directories()
 
-    # Validate uploaded file
-    is_valid = await validate_upload_file(file)
+    # ================================
+    # Basic Filename Validation
+    # ================================
 
-    if not is_valid:
+    if not file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="No filename provided.",
+        )
+
+    # ================================
+    # Extension Validation
+    # ================================
+
+    if not FileValidator.validate_extension(
+        file.filename
+    ):
         raise HTTPException(
             status_code=400,
             detail=(
-                "Invalid image file. "
-                "Supported formats: "
-                f"{', '.join(settings.ALLOWED_IMAGE_EXTENSIONS)}"
+                "Unsupported image format. "
+                "Allowed formats: "
+                "JPG, JPEG, PNG, WEBP."
             ),
         )
 
-    # Generate unique filename
-    filename = generate_unique_filename(
-        file.filename
-    )
+    # ================================
+    # Read File
+    # ================================
 
-    # Create upload path
-    upload_path = (
-        Path(settings.UPLOAD_DIR)
-        / filename
-    )
-
-    # Read uploaded file
     file_data = await file.read()
 
-    # Check file size
+    # ================================
+    # File Size Validation
+    # ================================
+
     max_size = (
         settings.MAX_UPLOAD_SIZE_MB
         * 1024
@@ -80,15 +90,42 @@ async def upload_clothing_image(
             ),
         )
 
-    # Save file
+    # ================================
+    # Generate Secure Filename
+    # ================================
+
+    filename = (
+        generate_unique_filename(
+            file.filename
+        )
+    )
+
+    # ================================
+    # Build Upload Path
+    # ================================
+
+    upload_path = (
+        Path(settings.UPLOAD_DIR)
+        / filename
+    )
+
+    # ================================
+    # Save File
+    # ================================
+
     try:
+
         with open(
             upload_path,
             "wb",
         ) as buffer:
-            buffer.write(file_data)
+
+            buffer.write(
+                file_data
+            )
 
     except Exception as error:
+
         raise HTTPException(
             status_code=500,
             detail=(
@@ -96,13 +133,46 @@ async def upload_clothing_image(
             ),
         ) from error
 
-    # Return upload information
+    # ================================
+    # Validate Actual Image
+    # ================================
+
+    validation = (
+        FileValidator.validate(
+            str(upload_path)
+        )
+    )
+
+    if not validation["valid"]:
+
+        # Delete invalid file
+        if upload_path.exists():
+            upload_path.unlink()
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The uploaded file is not "
+                "a valid image."
+            ),
+        )
+
+    # ================================
+    # Return Response
+    # ================================
+
     return {
         "success": True,
         "message": (
-            "Clothing image uploaded successfully."
+            "Clothing image uploaded "
+            "and validated successfully."
         ),
         "filename": filename,
-        "path": str(upload_path),
-        "size_bytes": len(file_data),
+        "path": str(
+            upload_path
+        ),
+        "size_bytes": len(
+            file_data
+        ),
+        "validation": validation,
     }
