@@ -1,13 +1,42 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import analyze
 from app.routes import process
 from app.routes import upload
+from app.startup import initialize_project_directories
 
 
 # ================================
-# Application Configuration
+# Application Lifespan
+# ================================
+
+@asynccontextmanager
+async def lifespan(
+    app: FastAPI,
+):
+    """
+    Application startup and shutdown events.
+    """
+
+    # Initialize required directories
+    initialize_project_directories()
+
+    print(
+        "AI Clothing to IMVU Creator API started."
+    )
+
+    yield
+
+    print(
+        "AI Clothing to IMVU Creator API stopped."
+    )
+
+
+# ================================
+# FastAPI Application
 # ================================
 
 app = FastAPI(
@@ -17,6 +46,7 @@ app = FastAPI(
         "clothing images into IMVU-ready assets."
     ),
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 
@@ -65,7 +95,7 @@ async def root():
             "AI Clothing to IMVU Creator"
         ),
         "message": (
-            "API is running successfully"
+            "API is running successfully."
         ),
         "version": "1.0.0",
     }
