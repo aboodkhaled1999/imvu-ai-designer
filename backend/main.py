@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routes import analyze
+from app.routes import pipeline
 from app.routes import process
 from app.routes import upload
 from app.startup import initialize_project_directories
@@ -21,7 +22,7 @@ async def lifespan(
     Application startup and shutdown events.
     """
 
-    # Initialize required directories
+    # Initialize project directories
     initialize_project_directories()
 
     print(
@@ -42,7 +43,7 @@ async def lifespan(
 app = FastAPI(
     title="AI Clothing to IMVU Creator API",
     description=(
-        "AI-powered API for converting "
+        "AI-powered platform for converting "
         "clothing images into IMVU-ready assets."
     ),
     version="1.0.0",
@@ -79,6 +80,11 @@ app.include_router(
 
 app.include_router(
     analyze.router,
+    prefix="/api",
+)
+
+app.include_router(
+    pipeline.router,
     prefix="/api",
 )
 
@@ -135,13 +141,18 @@ async def api_info():
             "analyze": (
                 "POST /api/analyze/clothing"
             ),
+            "pipeline": (
+                "POST /api/pipeline/process"
+            ),
         },
         "features": [
             "Clothing Image Upload",
+            "Image Validation",
             "Background Removal",
             "Clothing Image Analysis",
             "Color Detection",
             "Texture Generation",
+            "AI Processing Pipeline",
             "IMVU Asset Preparation",
         ],
     }
